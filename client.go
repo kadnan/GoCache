@@ -1,3 +1,4 @@
+// A cache client used to test the LRU cache library.
 package main
 
 import (
