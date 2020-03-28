@@ -8,8 +8,8 @@
 - You can also specify port while running: `go run gocached.go lru.go -port=9002 -capacity=20`
 
 ### Commands
-- get <keyname> to retrieve a key. If not available it gives a message. For example `get name`.
-- set <keyname> <value> to set a key. It returns `1`. For example `set name adnan`.
+- get [keyname] to retrieve a key. If not available it gives a message. For example `get name`.
+- set [keyname] [value] to set a key. It returns `1`. For example `set name adnan`.
 
 ## Etcetera
 
