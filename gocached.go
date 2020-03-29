@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	log "github.com/golang/glog"
-	gcache "github.com/morrowc/GoCache/gCache"
+	gcache "github.com/morrowc/GoCache"
 )
 
 var (
