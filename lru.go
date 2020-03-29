@@ -1,88 +1,86 @@
-/*
-	- Set: Add the item both in queue and HashMap. If they capacity is full, it removes the least recently used
-	element
-
-	- Get: Returns the item requested via Key. On querying the item it comes to forward of the queue
-
-*/
-
-package main
+// Package gCache implements an LRU cache in golang.
+//   Set: Add the item both in queue and HashMap. If they capacity is full,
+//        it removes the least recently used element.
+//
+//   Get: Returns the item requested via Key. On querying the item it comes
+//        to forward of the queue
+package gCache
 
 import (
-	"container/list"
 	"errors"
-	"fmt"
+	"sync"
+	"time"
 )
 
-var queue = list.New()
-var m = make(map[string]string)
-
-/*
-	Cache struct
-*/
+// Cache is an object which will hold items, it is the cache of these items.
 type Cache struct {
 	capacity int
+	items    map[string]*cacheItem
+	mu       sync.Mutex
 }
 
-/*
-	CacheItem Struct
-*/
-type CacheItem struct {
-	Name  string
-	Value string
+type cacheItem struct {
+	value   string
+	lastUse int64
 }
 
-// Move the list item to front
-func moveListElement(k string) {
-	for e := queue.Front(); e != nil; e = e.Next() {
-		if e.Value.(CacheItem).Name == k {
-			queue.MoveToFront(e)
-			break
-		}
+// Create a new cache object.
+func New(c int) *Cache {
+	return &Cache{
+		capacity: c,
+		items:    make(map[string]*cacheItem),
+		mu:       sync.Mutex{},
 	}
 }
 
-func (cache *Cache) print() {
+// Set a key into the cache, remove the last used key if capacity has been met.
+func (c *Cache) Set(key string, val string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	fmt.Println("Printing Queue Items")
-	// Iterate through list and print its contents.
-	for e := queue.Front(); e != nil; e = e.Next() {
-		fmt.Println(e.Value.(CacheItem).Name)
-	}
-}
-
-func (cache *Cache) set(key string, val string) string {
-	//Search the key in map
-	_, found := m[key]
-
-	if !found {
-		//Check the capacity
-		if len(m) == cache.capacity { // Time to evict
+	// Search for the key in map, if the key isn't there
+	// add it, no action if the key already exists.
+	if _, ok := c.items[key]; !ok {
+		// Check the capacity
+		now := time.Now().UnixNano()
+		if len(c.items) == c.capacity { // Time to evict
 			// Get the least use item from the queue
-			e := queue.Back()
-			queue.Remove(e) // Dequeue
-			keyName := e.Value.(CacheItem).Name
-			// Delete from the map
-			delete(m, keyName)
-		} else {
-			//There is still some room
-			item := CacheItem{Name: key, Value: val}
-			queue.PushFront(item)
-			m[key] = val
+			var lu int64
+			var del string
+			for key, i := range c.items {
+				switch {
+				case lu == 0:
+					// First time set lu to item lastUse
+					lu = i.lastUse
+					del = key
+					continue
+				case lu > i.lastUse:
+					// Current item is older than lu swap.
+					lu = i.lastUse
+					del = key
+					continue
+				}
+			}
+			// The del key should be delete from the map.
+			delete(c.items, del)
+		}
+
+		// Add the new element to the cache.
+		c.items[key] = &cacheItem{
+			value:   val,
+			lastUse: now,
 		}
 	}
-	return "1"
 }
 
-func (cache *Cache) get(k string) (string, error) {
+// Get a key from the cache, update that key's lastUsed time as an artifact.
+func (c *Cache) Get(k string) (string, error) {
 	//Search the key in map
-	v, found := m[k]
-	if found {
-		v := m[k]
-		//fmt.Println(v)
-		moveListElement(v)
-		return v, nil
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if v, ok := c.items[k]; ok {
+		v.lastUse = time.Now().UnixNano()
+		return v.value, nil
 	}
-	v = "-1"
-	return v, errors.New("Key not found")
+	return "", errors.New("Key not found")
 }
