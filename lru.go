@@ -16,7 +16,7 @@ import (
 type Cache struct {
 	capacity int
 	items    map[string]*cacheItem
-	mu       *sync.Mutex
+	mu       sync.Mutex
 }
 
 type cacheItem struct {
@@ -29,7 +29,7 @@ func New(c int) *Cache {
 	return &Cache{
 		capacity: c,
 		items:    make(map[string]*cacheItem),
-		mu:       &sync.Mutex{},
+		mu:       sync.Mutex{},
 	}
 }
 
@@ -82,5 +82,5 @@ func (c *Cache) Get(k string) (string, error) {
 		v.lastUse = time.Now().UnixNano()
 		return v.value, nil
 	}
-	return "-1", errors.New("Key not found")
+	return "", errors.New("Key not found")
 }
