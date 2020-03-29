@@ -28,48 +28,47 @@ type cacheItem struct {
 func New(c int) *Cache {
 	return &Cache{
 		capacity: c,
-		items:    make(map[string]string),
-		mu:       &sync.Mutex,
+		items:    make(map[string]*cacheItem),
+		mu:       &sync.Mutex{},
 	}
 }
 
 // Set a key into the cache, remove the last used key if capacity has been met.
 func (c *Cache) Set(key string, val string) {
-	if c.mu.Lock() {
-		defer c.mu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-		// Search for the key in map, if the key isn't there
-		// add it, no action if the key already exists.
-		if _, ok := m[key]; !ok {
-			// Check the capacity
-			now := time.Now().UnixNano()
-			if len(c.items) == c.capacity { // Time to evict
-				// Get the least use item from the queue
-				var lu int64
-				var del string
-				for key, i := range c.items {
-					switch {
-					case lu == 0:
-						// First time set lu to item lastUsed
-						lu = i.lastUsed
-						del = key
-						continue
-					case lu > i.lastUsed:
-						// Current item is older than lu swap.
-						lu = i.lastUsed
-						del = key
-						continue
-					}
+	// Search for the key in map, if the key isn't there
+	// add it, no action if the key already exists.
+	if _, ok := c.items[key]; !ok {
+		// Check the capacity
+		now := time.Now().UnixNano()
+		if len(c.items) == c.capacity { // Time to evict
+			// Get the least use item from the queue
+			var lu int64
+			var del string
+			for key, i := range c.items {
+				switch {
+				case lu == 0:
+					// First time set lu to item lastUse
+					lu = i.lastUse
+					del = key
+					continue
+				case lu > i.lastUse:
+					// Current item is older than lu swap.
+					lu = i.lastUse
+					del = key
+					continue
 				}
-				// The del key should be delete from the map.
-				delete(c.items, del)
 			}
+			// The del key should be delete from the map.
+			delete(c.items, del)
+		}
 
-			// Add the new element to the cache.
-			c.items[key] = &cacheItem{
-				value:    val,
-				lastUsed: now,
-			}
+		// Add the new element to the cache.
+		c.items[key] = &cacheItem{
+			value:   val,
+			lastUse: now,
 		}
 	}
 }
@@ -77,12 +76,11 @@ func (c *Cache) Set(key string, val string) {
 // Get a key from the cache, update that key's lastUsed time as an artifact.
 func (c *Cache) Get(k string) (string, error) {
 	//Search the key in map
-	if c.mu.Lock() {
-		defer c.mu.Unlock()
-		if v, ok := c.items[k]; ok {
-			v.lastUse = time.Now().UnixNano()
-			return v.value, nil
-		}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if v, ok := c.items[k]; ok {
+		v.lastUse = time.Now().UnixNano()
+		return v.value, nil
 	}
 	return "-1", errors.New("Key not found")
 }
