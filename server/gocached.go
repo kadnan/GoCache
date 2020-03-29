@@ -20,7 +20,7 @@ var (
 
 // processCommand will process the command and execute relevant LRU methods
 func processCommand(c string, gc *gcache.Cache) (string, error) {
-	var result string
+	result := "Key Added"
 
 	pattern := ""
 	if strings.Index(strings.ToLower(c), "get") > -1 {
@@ -37,20 +37,19 @@ func processCommand(c string, gc *gcache.Cache) (string, error) {
 	switch {
 	case len(matches[0]) == 2:
 		key := matches[0][1]
-		result, err = gc.get(key)
+		result, err = gc.Get(key)
 		if err != nil {
 			return "", err
 		}
 	case len(matches[0]) == 3:
 		key := matches[0][1]
 		val := matches[0][2]
-		result = gc.set(key, val)
+		gc.Set(key, val)
 	}
 	return result, nil
 }
 
 func validateCommand(cmd string) bool {
-	var msg bool
 	//Split the command to make sure it is not more than 2 or 3
 	cmdArray := strings.Split(cmd, " ")
 	// cmd must be at least 2 elements (get/set and what to get/set) and not more than 3 elements.
@@ -69,7 +68,7 @@ func validateCommand(cmd string) bool {
 	return false
 }
 
-func handleConnection(c net.Conn, gc *Cache) {
+func handleConnection(c net.Conn, gc *gcache.Cache) {
 	defer c.Close()
 	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
 
@@ -116,6 +115,6 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		go handleConnection(c, &gCache)
+		go handleConnection(c, gCache)
 	}
 }
